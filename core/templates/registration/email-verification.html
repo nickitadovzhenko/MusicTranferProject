@@ -1,0 +1,15 @@
+
+{% autoescape off %}
+    
+Hi, 
+
+Thank you for registring on out website!
+
+Please use this link to verify your email:
+
+http://{{domain}}{%url 'email-verification' uidb64=uid token=token%}
+
+
+
+
+{% endautoescape %}
