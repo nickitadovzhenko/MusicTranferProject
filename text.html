@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlist Transfer</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">PlaylistTransfer</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Signup</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container mt-5">
+        <div class="row">
+            <!-- First Column -->
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="sourcePlatform" class="form-label">Choose from what platform would you like to transfer your playlists</label>
+                    <select id="sourcePlatform" class="form-select">
+                        <option value="spotify">Spotify</option>
+                        <option value="appleMusic">Apple Music</option>
+                        <option value="youtube">YouTube</option>
+                    </select>
+                </div>
+            </div>
+            <!-- Second Column -->
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="destinationPlatform" class="form-label">Choose to what platform would you like to transfer your playlists</label>
+                    <select id="destinationPlatform" class="form-select">
+                        <option value="spotify">Spotify</option>
+                        <option value="appleMusic">Apple Music</option>
+                        <option value="youtube">YouTube</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <!-- Centered Transfer Button -->
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <button type="button" class="btn btn-success btn-lg">TRANSFER</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS (Optional, for better interactivity) -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/5.1.0/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
