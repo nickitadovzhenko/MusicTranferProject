@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Dashboard</h1>
+    <div class="list-group">
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+            <span>Spotify</span>
+            {% if spoti_status == 'connected' %}
+                <a class="btn btn-danger" href="#">Dsiconnect</a>
+                <a class="btn btn-primary" href="{% url 'get_playlists' %}">Get Playlists</a>
+            {% else %}
+                <a class="btn btn-primary" href="{% url 'spotify_redirect' %}">Connect</a>
+            {% endif %}
+        </div>
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+            <span>Youtube</span>
+            {% if youtube_status == 'connected' %}
+                <a class="btn btn-danger" href="#">Disconnect</a>
+                <a class="btn btn-primary" href="#">Get Playlists</a>
+            {% else %}
+                <a class="btn btn-primary" href="{% url 'authorize_youtube' %}">Connect</a>
+            {% endif %}
+            
+        </div>
+    </div>
+</div>
+{% endblock content %}

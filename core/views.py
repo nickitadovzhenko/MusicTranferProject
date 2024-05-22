@@ -4,13 +4,20 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.contrib.auth.decorators import login_required
 from .token import user_tokenizer_generate
 from django.contrib.auth.models import User
+from django.conf import settings
 
+from random import randint
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.models import auth
 from django.contrib.auth import authenticate
 from django.contrib import messages
+from .models import Spotify_Token, YouTubeCredentials
+
+from api.requests.get_user_token import exchange_code_for_tokens
+
+
 
 # Create your views here.
 
@@ -128,3 +135,19 @@ def user_logout(request):
 
     messages.success(request, "Logout success")
     return redirect("home")
+
+
+
+def dashboard(request):
+    if Spotify_Token.objects.filter(user = request.user):
+        spoti_status = 'connected'
+    else:
+        spoti_status = 'no_connection'
+    if YouTubeCredentials.objects.filter(user = request.user):
+        youtube_status = 'connected'
+    else:
+        youtube_status = 'no_connection'
+    return render(request, 'dashboard.html', {"spoti_status":spoti_status,  "youtube_status":youtube_status})
+
+
+

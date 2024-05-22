@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Playlists</h1>
+    <ul>
+        {% for playlist in playlists %}
+            <li>
+                <img src="{{ playlist.images.0.url }}" alt="{{ playlist.images.0.url }} Image">
+                
+                <h2>{{ playlist.name }}</h2>
+                <p>Tracks: {{ playlist.tracks.total }}</p>
+                <br>
+                <br>
+            </li>
+        {% endfor %}
+    </ul>
+{% endblock %}
