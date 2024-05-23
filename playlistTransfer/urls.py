@@ -19,6 +19,8 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('spotify/', include('api.urls')),
+    path('api/', include('api.urls')),
     path('', include('core.urls')),
+    path('spotify/', include('spotify.urls')),
+    path('youtube/', include('youtube.urls')),
 ]

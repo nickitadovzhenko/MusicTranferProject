@@ -7,7 +7,7 @@
         <div class="list-group-item d-flex justify-content-between align-items-center">
             <span>Spotify</span>
             {% if spoti_status == 'connected' %}
-                <a class="btn btn-danger" href="#">Dsiconnect</a>
+                <a class="btn btn-danger" href="{% url 'disconnect_spotify' %}">Disconnect</a>
                 <a class="btn btn-primary" href="{% url 'get_playlists' %}">Get Playlists</a>
             {% else %}
                 <a class="btn btn-primary" href="{% url 'spotify_redirect' %}">Connect</a>
@@ -16,8 +16,8 @@
         <div class="list-group-item d-flex justify-content-between align-items-center">
             <span>Youtube</span>
             {% if youtube_status == 'connected' %}
-                <a class="btn btn-danger" href="#">Disconnect</a>
-                <a class="btn btn-primary" href="#">Get Playlists</a>
+                <a class="btn btn-danger" href="{% url 'disconnect_youtube' %}">Disconnect</a>
+                <a class="btn btn-primary" href="{% url 'get_playlists_youtube' %}">Get Playlists</a>
             {% else %}
                 <a class="btn btn-primary" href="{% url 'authorize_youtube' %}">Connect</a>
             {% endif %}

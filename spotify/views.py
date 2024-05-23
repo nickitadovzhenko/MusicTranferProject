@@ -1,31 +1,14 @@
 from django.shortcuts import render
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
 from django.conf import settings
 from core.models import Spotify_Token
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
+
 from random import randint
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import requests
-from google_auth_oauthlib.flow import Flow
-# Create your views here.
 
-# @api_view(['POST'])
-# def login(request):
-#     return Response({})
-
-
-# @api_view(['POST'])
-# def signup(request):
-#     return Response({})
-
-
-# @api_view(['GET'])
-# def test_token(request):
-#     return Response({})
 
 def get_authorization_url():
     client_id = settings.SPOTIFY_CLIENT_ID  # Replace with your Client ID
@@ -50,18 +33,6 @@ def redirect_to_spotify(request):
 
 
 def exchange_code_for_tokens(authorization_code, redirect_uri, client_id, client_secret):
-    """
-    Exchanges the authorization code for access and refresh tokens.
-
-    Args:
-        authorization_code: The authorization code received from Spotify.
-        redirect_uri: The redirect URI registered in your Spotify app settings.
-        client_id: Your Spotify app's Client ID.
-        client_secret: Your Spotify app's Client Secret (keep confidential).
-
-    Returns:
-        A dictionary containing the access token and refresh token, or None on error.
-    """
 
     url = "https://accounts.spotify.com/api/token"
     data = {
@@ -109,7 +80,6 @@ def exchange_refresh_token_for_tokens(request, refresh_token, client_id, client_
     }
     response = requests.post(url, data=data, auth=(client_id, client_secret))
     token_response = response.json()
-    print(token_response)
     return token_response
 
 
@@ -126,6 +96,8 @@ def get_playlists(request):
 
         # Get user's playlists
         playlists = sp.current_user_playlists()
+    except Spotify_Token.DoesNotExist:
+        return render(request, 'error_page.html', {'error_message':"You need to connect your Spotify account first."})
     except:
         # Handle case where access token is not available
         refresh_token = Spotify_Token.objects.get(
@@ -147,56 +119,7 @@ def get_playlists(request):
     # Print user's playlists
     return render(request, "C:/Users/nick/Documents/GitHub/MusicTranferProject/core/templates/playlists.html", {"playlists": playlists['items']})
 
-
-def get_flow():
-    return Flow.from_client_config(
-        {
-            "web": {
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token"
-            }
-        },
-        scopes=['https://www.googleapis.com/auth/youtube.readonly']
-    )
-
-
-def authorize_youtube(request):
-    print(settings.GOOGLE_REDIRECT_URI)
-    flow = get_flow()
-    flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
-    authorization_url, state = flow.authorization_url(
-        access_type='offline',
-        include_granted_scopes='true'
-    )
-    request.session['state'] = state
-    return redirect(authorization_url)
-
-def youtube_callback(request):
-    flow=get_flow()
-    flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
-    flow.fetch_token(authorization_response = request.build_absolute_uri())
-    credentials = flow.credentials
-    user = request.user
-    YouTubeCredentials.objects.update_or_create(
-        user=user,
-        defaults={
-            'access_token': credentials.token,
-            'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id,
-            'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes
-        }
-    )
-    return redirect('home')
-
-def credentials_to_dict(credentials):
-    return {'token': credentials.token,
-            'refresh_token': credentials.refresh_token,
-            'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id,
-            'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes
-            }
+@login_required
+def disconnect_spotify(request):
+    Spotify_Token.objects.filter(user=request.user).delete()
+    return redirect('dashboard')
