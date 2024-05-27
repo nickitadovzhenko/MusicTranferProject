@@ -6,4 +6,5 @@ urlpatterns = [
     path('disconnect', views.disconnect_spotify, name='disconnect_spotify'),
     path('spotify_callback', views.handle_authorization_code, name='spotify_callback'),
     path('get_playlists_spotify', views.get_playlists, name='get_playlists'),
+    path('list_tracks/<str:playlist_id>', views.list_tracks, name='list_tracks'),
 ]

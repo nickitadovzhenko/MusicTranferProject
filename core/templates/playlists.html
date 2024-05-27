@@ -8,7 +8,7 @@
                 <img src="{{ playlist.images.0.url }}" alt="{{ playlist.images.0.url }} Image">
                 
                 <h2>{{ playlist.name }}</h2>
-                <p>Tracks: {{ playlist.tracks.total }}</p>
+                <a href="{% url 'list_tracks' playlist.id %}">Tracks: {{ playlist.tracks.total }}</a>
                 <br>
                 <br>
             </li>
