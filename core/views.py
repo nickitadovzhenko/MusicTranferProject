@@ -14,25 +14,26 @@ from django.contrib.auth.models import auth
 from django.contrib.auth import authenticate
 from django.contrib import messages
 from .models import Spotify_Token, YouTubeCredentials
-
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 from api.requests.get_user_token import exchange_code_for_tokens
-
+from spotify.views import get_authorization
 
 
 # Create your views here.
 
 
-
-
-
 def home(request):
     return render(request, 'index.html')
+
 
 def login(request):
     return render(request, 'login.html')
 
-def signup(request):
 
+def signup(request):
     form = CreateUserForm()
 
     if request.method == 'POST':
@@ -65,6 +66,7 @@ def signup(request):
     context = {'form': form}
 
     return render(request, 'registration/signup.html', context)
+
 
 def email_verification(request, uidb64, token):
     unique_id = force_str(urlsafe_base64_decode(uidb64))
@@ -137,17 +139,53 @@ def user_logout(request):
     return redirect("home")
 
 
-
 def dashboard(request):
-    if Spotify_Token.objects.filter(user = request.user):
+    if Spotify_Token.objects.filter(user=request.user):
         spoti_status = 'connected'
     else:
         spoti_status = 'no_connection'
-    if YouTubeCredentials.objects.filter(user = request.user):
+    if YouTubeCredentials.objects.filter(user=request.user):
         youtube_status = 'connected'
     else:
         youtube_status = 'no_connection'
-    return render(request, 'dashboard.html', {"spoti_status":spoti_status,  "youtube_status":youtube_status})
+    return render(request, 'dashboard.html', {"spoti_status": spoti_status, "youtube_status": youtube_status})
 
 
+@login_required
+@csrf_exempt
+def store_selected_tracks(request):
+    if request.method == 'POST':
+        selected_playlists = request.POST.getlist('playlists')  # Extract selected playlists
+        all_tracks = []
 
+        # Get access token for Spotify API
+        access_token = get_authorization(request)
+
+        sp = spotipy.Spotify(auth=access_token)
+
+        for playlist_id in selected_playlists:
+            results = sp.playlist_items(playlist_id, fields="items.track.name,items.track.artists.name,total",
+                                        additional_types=["track"])
+            tracks = results['items']
+
+            while results.get('next'):
+                results = sp.next(results)
+                tracks.extend(results['items'])
+
+            formatted_tracks = [
+                {
+                    'name': track['track']['name'],
+                    'artists': ', '.join([artist['name'] for artist in track['track']['artists']]),
+                    'playlist_id': playlist_id
+                }
+                for track in tracks if track['track'] is not None
+            ]
+
+            all_tracks.extend(formatted_tracks)
+
+        # Store tracks in the session or database as needed
+        print(all_tracks)
+
+        return JsonResponse({'status': 'success', 'message': 'Tracks stored successfully.'})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})

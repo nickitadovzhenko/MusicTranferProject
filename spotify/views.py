@@ -21,8 +21,6 @@ def get_authorization_url():
           f"&redirect_uri={redirect_uri}" \
           f"&scope={scope}" \
           f"&state={state}"
-    print(client_id)
-    print(redirect_uri)
     return url
 
 
@@ -84,44 +82,13 @@ def exchange_refresh_token_for_tokens(request, refresh_token, client_id, client_
 
 @login_required
 def get_playlists(request):
-    sp_oauth = SpotifyOAuth(client_id=settings.SPOTIFY_CLIENT_ID, client_secret=settings.SPOTIFY_CLIENT_SECRET,
-                            redirect_uri=settings.SPOTIFY_REDIRECT_URI,
-                            scope="playlist-modify-public playlist-modify-private")
-
-    # Get access token and refresh token
     try:
-        access_token = Spotify_Token.objects.get(
-            user=request.user).access_token
+        access_token = get_authorization(request)
         sp = spotipy.Spotify(auth=access_token)
-
-        # Get user's playlists
         playlists = sp.current_user_playlists()
-        for playlist in playlists['items']:
-            print(playlist['id'])
-    except Spotify_Token.DoesNotExist:
-        return render(request, 'error_page.html', {'error_message': "You need to connect your Spotify account first."})
-    except:
-        # Handle case where access token is not available
-        refresh_token = Spotify_Token.objects.get(
-            user=request.user).refresh_token
-        token_response = exchange_refresh_token_for_tokens(
-            request, refresh_token, settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET)
-        access_token = token_response['access_token']
-        Spotify_Token.objects.update_or_create(
-            user=request.user,
-            defaults={
-                'access_token': access_token,
-            }
-        )
-        sp = spotipy.Spotify(auth=access_token)
-
-        # Get user's playlists
-        playlists = sp.current_user_playlists()
-        print(playlists['items'])
-
-    # Print user's playlists
-    return render(request, "playlists.html",
-                  {"playlists": playlists['items']})
+        return render(request, "playlists.html", {"playlists": playlists['items']})
+    except Exception as e:
+        return render(request, 'error_page.html', {'error_message': str(e)})
 
 
 @login_required
@@ -133,25 +100,8 @@ def disconnect_spotify(request):
 @login_required
 def list_tracks(request, playlist_id):
     try:
-        access_token = Spotify_Token.objects.get(user=request.user).access_token
+        access_token = get_authorization(request)
         sp = spotipy.Spotify(auth=access_token)
-    except Spotify_Token.DoesNotExist:
-        return render(request, 'error_page.html', {'error_message': 'You need to connect your Spotify account.'})
-    except:
-        # Handle case where access token is not available
-        refresh_token = Spotify_Token.objects.get(
-            user=request.user).refresh_token
-        token_response = exchange_refresh_token_for_tokens(
-            request, refresh_token, settings.SPOTIFY_CLIENT_ID, settings.SPOTIFY_CLIENT_SECRET)
-        access_token = token_response['access_token']
-        Spotify_Token.objects.update_or_create(
-            user=request.user,
-            defaults={
-                'access_token': access_token,
-            }
-        )
-        sp = spotipy.Spotify(auth=access_token)
-    try:
         results = sp.playlist_items(
             playlist_id, fields="items.track.name,items.track.artists.name,total", additional_types=["track"]
         )
@@ -172,5 +122,35 @@ def list_tracks(request, playlist_id):
             for track in tracks if track['track'] is not None  # Handle potential null tracks
         ]
         return render(request, 'playlist_tracks.html', {'playlist_id': playlist_id, 'tracks': formatted_tracks})
-    except spotipy.SpotifyException as e:
+    except Exception as e:
         return render(request, 'error_page.html', {'error_message': 'Error fetching playlist tracks: ' + str(e)})
+
+
+def is_token_valid(access_token):
+    sp = spotipy.Spotify(auth=access_token)
+    try:
+        sp.current_user()  # This endpoint requires authentication and will fail if the token is invalid
+        return True
+    except spotipy.exceptions.SpotifyException as e:
+        if e.http_status == 401:
+            return False
+        else:
+            raise e  # Raise other exceptions that are not related to invalid token
+
+
+def get_authorization(request):
+    try:
+        spotify_token = Spotify_Token.objects.get(user=request.user)
+        access_token = spotify_token.access_token
+        if is_token_valid(access_token):
+            return access_token
+        else:
+            refresh_token = spotify_token.refresh_token
+            token_response = exchange_refresh_token_for_tokens(request, refresh_token, settings.SPOTIFY_CLIENT_ID,
+                                                               settings.SPOTIFY_CLIENT_SECRET)
+            access_token = token_response['access_token']
+            spotify_token.access_token = access_token
+            spotify_token.save()
+            return access_token
+    except Spotify_Token.DoesNotExist:
+        raise Exception("You need to connect your Spotify account first.")

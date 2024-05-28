@@ -24,7 +24,7 @@ urlpatterns = [
 
     path('dashboard', views.dashboard, name='dashboard'),
 
-
+    path('store_selected_tracks/', views.store_selected_tracks, name='store_selected_tracks'),
 
     
 ]

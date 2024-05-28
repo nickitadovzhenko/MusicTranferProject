@@ -2,16 +2,19 @@
 
 {% block content %}
     <h1>Playlists</h1>
-    <ul>
-        {% for playlist in playlists %}
-            <li>
-                <img src="{{ playlist.images.0.url }}" alt="{{ playlist.images.0.url }} Image">
-                
-                <h2>{{ playlist.name }}</h2>
-                <a href="{% url 'list_tracks' playlist.id %}">Tracks: {{ playlist.tracks.total }}</a>
-                <br>
-                <br>
-            </li>
-        {% endfor %}
-    </ul>
+    <form id="playlists-form" method="post" action="{% url 'store_selected_tracks' %}">
+        {% csrf_token %}
+        <ul>
+            {% for playlist in playlists %}
+                <li>
+                    <input type="checkbox" name="playlists" value="{{ playlist.id }}">
+                    <img src="{{ playlist.images.0.url }}" alt="{{ playlist.images.0.url }} Image" width="300" height="300">
+                    <h2>{{ playlist.name }}</h2>
+                    <a href="{% url 'list_tracks' playlist.id %}">Tracks: {{ playlist.tracks.total }}</a>
+                    <br><br>
+                </li>
+            {% endfor %}
+        </ul>
+        <button type="submit">Store Tracks</button>
+    </form>
 {% endblock %}
