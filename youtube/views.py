@@ -1,5 +1,7 @@
 from django.shortcuts import render
 from django.conf import settings
+from oauthlib.oauth2 import OAuth2Error
+
 from core.models import YouTubeCredentials
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
@@ -14,7 +16,6 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import googleapiclient
-
 
 from googleapiclient.errors import HttpError
 from google.auth.transport.requests import Request
@@ -35,12 +36,12 @@ def get_flow():
                 "token_uri": "https://oauth2.googleapis.com/token"
             }
         },
-        scopes=['https://www.googleapis.com/auth/youtube.readonly']
+        scopes=['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.readonly', 'https://www.googleapis.com/auth/youtube.force-ssl']
     )
+
 
 @login_required
 def authorize_youtube(request):
-    print(settings.GOOGLE_REDIRECT_URI)
     flow = get_flow()
     flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
     authorization_url, state = flow.authorization_url(
@@ -51,25 +52,36 @@ def authorize_youtube(request):
     request.session['state'] = state
     return redirect(authorization_url)
 
+
 @login_required
 def youtube_callback(request):
-    flow=get_flow()
+    flow = get_flow()
     flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
-    flow.fetch_token(authorization_response = request.build_absolute_uri())
+    try:
+        flow.fetch_token(authorization_response=request.build_absolute_uri())
+    except OAuth2Error as e:  # Catch OAuth2 errors
+        logging.error(f"OAuth2 error: {e}")
+        return render(request, 'error_page.html', {'error_message': f"OAuth2 Error: {e}"})
     credentials = flow.credentials
     user = request.user
-    YouTubeCredentials.objects.update_or_create(
-        user=user,
-        defaults={
-            'access_token': credentials.token,
-            'refresh_token': credentials.refresh_token,
-            'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id,
-            'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes
-        }
-    )
+
+    try:
+        YouTubeCredentials.objects.update_or_create(
+            user=user,
+            defaults={
+                'access_token': credentials.token,
+                'refresh_token': credentials.refresh_token,
+                'token_uri': credentials.token_uri,
+                'client_id': credentials.client_id,
+                'client_secret': credentials.client_secret,
+                'scopes': credentials.scopes
+            }
+        )
+    except Exception as e:
+        logging.error(f"Error saving YouTube credentials: {e}")
+        return render(request, 'error_page.html', {'error_message': f"Error saving YouTube credentials: {e}"})
     return redirect('home')
+
 
 def credentials_to_dict(credentials):
     return {'token': credentials.token,
@@ -85,6 +97,7 @@ def disconnect_youtube(request):
     YouTubeCredentials.objects.filter(user=request.user).delete()
     return redirect('dashboard')
 
+
 def get_youtube_service(credentials):
     # Load credentials
     creds = Credentials(
@@ -99,6 +112,7 @@ def get_youtube_service(credentials):
     # Build the YouTube service
     service = build('youtube', 'v3', credentials=creds)
     return service
+
 
 @login_required
 def get_youtube_playlists(request):
@@ -120,14 +134,11 @@ def get_youtube_playlists(request):
             # Count the number of items (tracks) in the playlist
             total_items = playlist_items_response.get('pageInfo', {}).get('totalResults', 0)
             return total_items
-        
+
         except Exception as e:
             # Handle exceptions
             print(f"Failed to retrieve number of tracks for playlist {playlist_id}. Error: {str(e)}")
             return 0
-
-
-
 
     # Get the YouTube API service
     youtube_service = get_youtube_service(youtube_credentials)
@@ -138,7 +149,7 @@ def get_youtube_playlists(request):
             part='snippet',
             mine=True
         ).execute()
-        
+
         # Extract playlist information from the response
         playlists = playlists_response.get('items', [])
         playlist_info = [{'id': playlist['id'], 'title': playlist['snippet']['title']} for playlist in playlists]
@@ -148,12 +159,13 @@ def get_youtube_playlists(request):
             playlist_id = playlist['id']
             playlist_title = playlist['snippet']['title']
             playlist_image = playlist['snippet']['thumbnails']['default']['url']
-            num_tracks = get_number_of_tracks(playlist_id, youtube_service)  # Assume you have a function to get the number of tracks
+            num_tracks = get_number_of_tracks(playlist_id,
+                                              youtube_service)  # Assume you have a function to get the number of tracks
             playlists_data.append({'title': playlist_title, 'image_url': playlist_image, 'num_tracks': num_tracks})
 
         # Render the template with playlist information
         return render(request, 'youtube_playlists.html', {'playlists': playlists_data})
-    
+
     except Exception as e:
         # Handle exceptions
         return HttpResponse(f"Failed to retrieve playlists. Error: {str(e)}", status=500)

@@ -2,7 +2,7 @@
 
 {% block content %}
     <h1>Playlists</h1>
-    <form id="playlists-form" method="post" action="{% url 'store_selected_tracks' %}">
+    <form id="playlists-form" method="post" action="{% url 'transfer' %}">
         {% csrf_token %}
         <ul>
             {% for playlist in playlists %}
@@ -15,6 +15,6 @@
                 </li>
             {% endfor %}
         </ul>
-        <button type="submit">Store Tracks</button>
+        <button type="submit" class="btn btn-success btn-lg">Transfer Tracks</button>
     </form>
 {% endblock %}

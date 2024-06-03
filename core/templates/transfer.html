@@ -2,6 +2,21 @@
 
 {% block content %}
 <h1>Select playlists for transfer</h1>
-# Here user should be able to select playlists to transfer
+<h2>Playlists</h2>
+    <form id="playlists-form" method="post" action="{% url 'transfer' %}">
+        {% csrf_token %}
+        <ul>
+            {% for playlist in playlists %}
+                <li>
+                    <input type="checkbox" name="playlists" value="{{ playlist.id }}">
+                    <img src="{{ playlist.images.0.url }}" alt="{{ playlist.images.0.url }} Image" width="300" height="300">
+                    <h3>{{ playlist.name }}</h3>
+                    <a href="{% url 'list_tracks' playlist.id %}">Tracks: {{ playlist.tracks.total }}</a>
+                    <br><br>
+                </li>
+            {% endfor %}
+        </ul>
+        <button type="submit">Transfer tracks</button>
+    </form>
 
 {% endblock %}
