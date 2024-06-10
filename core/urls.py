@@ -26,5 +26,7 @@ urlpatterns = [
 
     path('store_selected_tracks/', views.store_selected_tracks, name='store_selected_tracks'),
 
-    path('transfer', views.transfer_and_create_playlist, name='transfer'),
+    path('transfer', views.transfer_and_create_youtube_playlist, name='transfer'),
+
+    path('transfer_to_spotify', views.transfer_and_create_spotify_playlist, name = 'transfer_to_spotify')
 ]

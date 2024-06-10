@@ -196,7 +196,7 @@ def store_selected_tracks(request):
 
 
 @login_required
-def transfer_and_create_playlist(request):
+def transfer_and_create_youtube_playlist(request):
     if request.method == 'POST':
         selected_playlist_ids = request.POST.getlist('playlists')
         if not selected_playlist_ids:
@@ -269,5 +269,97 @@ def transfer_and_create_playlist(request):
                 return render(request, 'error_page.html', {'error_message': 'Error transferring tracks'})
 
         return redirect('get_playlists_youtube')
+
+    return render(request, 'error_page.html', {'error_message': 'Invalid request method'})
+
+
+@login_required
+def transfer_and_create_spotify_playlist(request):
+    if request.method == 'POST':
+        selected_playlist_ids = request.POST.getlist('playlists')
+        print(selected_playlist_ids)
+        # Check if any playlists were selected
+        if not selected_playlist_ids:
+            return render(request, 'error_page.html', {'error_message': 'No playlists selected'})
+
+        # Get Spotify and YouTube credentials
+        try:
+            spotify_token = Spotify_Token.objects.get(user=request.user)
+            youtube_credentials = YouTubeCredentials.objects.get(user=request.user)
+        except (Spotify_Token.DoesNotExist, YouTubeCredentials.DoesNotExist) as e:
+            return render(request, 'error_page.html', {'error_message': str(e)})
+
+        sp = spotipy.Spotify(auth=spotify_token.access_token)
+        youtube_service = get_youtube_service(youtube_credentials)
+
+        for youtube_playlist_id in selected_playlist_ids:
+            # Get YouTube playlist details (add error handling)
+            try:
+                request = youtube_service.playlists().list(
+                    part="snippet",
+                    id=youtube_playlist_id
+                )
+                response = request.execute()
+
+                if not response['items']:
+                    logging.warning(f"YouTube playlist not found: {youtube_playlist_id}")
+                    continue  # Skip to the next playlist if not found
+
+                youtube_playlist = response['items'][0]
+            except HttpError as e:
+                logging.error(f"An error occurred fetching playlist details: {e}")
+                return render(request, 'error_page.html', {'error_message': 'Error fetching YouTube playlist details'})
+
+            # Create Spotify playlist with the same name (add error handling)
+            try:
+                spotify_playlist = sp.user_playlist_create(
+                    user=sp.me()['id'],
+                    name=youtube_playlist['snippet']['title'],
+                    public=True,  # You can set this to False for a private playlist
+                    description=f"Transferred from YouTube playlist: {youtube_playlist['snippet']['title']}"
+                )
+                spotify_playlist_id = spotify_playlist['id']
+            except Exception as e:
+                logging.error(f"An error occurred creating Spotify playlist: {e}")
+                return render(request, 'error_page.html', {'error_message': 'Error creating Spotify playlist'})
+
+            # Fetch YouTube playlist tracks and add to Spotify (with error handling)
+            try:
+                request = youtube_service.playlistItems().list(
+                    part="snippet",
+                    playlistId=youtube_playlist_id,
+                    maxResults=50  # Adjust as needed
+                )
+                response = request.execute()
+                youtube_playlist_items = response['items']
+
+                while response.get('nextPageToken'):
+                    request = youtube_service.playlistItems().list(
+                        part="snippet",
+                        playlistId=youtube_playlist_id,
+                        maxResults=50,
+                        pageToken=response['nextPageToken']
+                    )
+                    response = request.execute()
+                    youtube_playlist_items.extend(response['items'])
+
+                track_uris = []
+                for item in youtube_playlist_items:
+                    video_id = item['snippet']['resourceId']['videoId']
+                    video_title = item['snippet']['title']
+
+                    # Search Spotify for the track
+                    search_results = sp.search(q=video_title, type='track', limit=1)
+                    if search_results['tracks']['items']:
+                        track_uris.append(search_results['tracks']['items'][0]['uri'])
+
+                if track_uris:
+                    sp.playlist_add_items(playlist_id=spotify_playlist_id, items=track_uris)
+
+            except Exception as e:
+                logging.error(f"An error occurred transferring tracks: {e}")
+                return render(request, 'error_page.html', {'error_message': 'Error transferring tracks'})
+
+        return redirect('get_playlists')
 
     return render(request, 'error_page.html', {'error_message': 'Invalid request method'})

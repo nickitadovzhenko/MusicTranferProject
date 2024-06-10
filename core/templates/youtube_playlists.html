@@ -1,17 +1,19 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>Playlists</h1>
-    <ul>
-        {% for playlist in playlists %}
-            <li>
-                <img src="{{ playlist.image_url }}" alt="{{ playlist.title }} Image">
-
-                <h2>{{ playlist.title }}</h2>
-                <p>Tracks: {{ playlist.num_tracks }}</p>
-                <br>
-                <br>
-            </li>
-        {% endfor %}
-    </ul>
+    <form id="playlists-form" method="post" action="{% url 'transfer_to_spotify' %}">
+            {% csrf_token %}
+            <ul>
+                {% for playlist in playlists %}
+                    <li>
+                        <input type="checkbox" name="playlists" value="{{ playlist.playlist_id }}">
+                        <img src="{{ playlist.image_url }}" alt="{{ playlist.title }} Image" width="300" height="300">
+                        <h2>{{ playlist.title }}</h2>
+                        <a>Tracks: {{ playlist.num_tracks }}</a>
+                        <br><br>
+                    </li>
+                {% endfor %}
+            </ul>
+            <button type="submit" class="btn btn-success btn-lg">Transfer Tracks</button>
+        </form>
 {% endblock %}

@@ -36,7 +36,8 @@ def get_flow():
                 "token_uri": "https://oauth2.googleapis.com/token"
             }
         },
-        scopes=['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.readonly', 'https://www.googleapis.com/auth/youtube.force-ssl']
+        scopes=['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.readonly',
+                'https://www.googleapis.com/auth/youtube.force-ssl']
     )
 
 
@@ -116,41 +117,38 @@ def get_youtube_service(credentials):
 
 @login_required
 def get_youtube_playlists(request):
-    # Get YouTube credentials for the current user
     youtube_credentials = YouTubeCredentials.objects.filter(user=request.user).first()
     if not youtube_credentials:
-        # Handle case where credentials are not available
         return HttpResponse("YouTube credentials not found", status=400)
 
     def get_number_of_tracks(playlist_id, youtube_service):
         try:
-            # Call the playlistItems.list method to retrieve items in the playlist
             playlist_items_response = youtube_service.playlistItems().list(
                 part='contentDetails',
                 playlistId=playlist_id,
-                maxResults=50  # Max number of items per request
+                maxResults=50
             ).execute()
 
-            # Count the number of items (tracks) in the playlist
             total_items = playlist_items_response.get('pageInfo', {}).get('totalResults', 0)
             return total_items
-
         except Exception as e:
-            # Handle exceptions
-            print(f"Failed to retrieve number of tracks for playlist {playlist_id}. Error: {str(e)}")
+            logging.error(f"Failed to retrieve number of tracks for playlist {playlist_id}. Error: {str(e)}")
             return 0
 
-    # Get the YouTube API service
-    youtube_service = get_youtube_service(youtube_credentials)
-
     try:
-        # Call the playlists.list method to retrieve playlists
+        # Refresh access token using refresh token from the database
+        access_token = refresh_access_token(youtube_credentials.refresh_token, settings.GOOGLE_CLIENT_ID,
+                                            settings.GOOGLE_CLIENT_SECRET, youtube_credentials)
+
+        # Build YouTube service with the refreshed access token
+        youtube_service = build_youtube_service(access_token)
+
+        # Call YouTube API to retrieve playlists
         playlists_response = youtube_service.playlists().list(
             part='snippet',
             mine=True
         ).execute()
 
-        # Extract playlist information from the response
         playlists = playlists_response.get('items', [])
         playlist_info = [{'id': playlist['id'], 'title': playlist['snippet']['title']} for playlist in playlists]
 
@@ -159,13 +157,40 @@ def get_youtube_playlists(request):
             playlist_id = playlist['id']
             playlist_title = playlist['snippet']['title']
             playlist_image = playlist['snippet']['thumbnails']['default']['url']
-            num_tracks = get_number_of_tracks(playlist_id,
-                                              youtube_service)  # Assume you have a function to get the number of tracks
-            playlists_data.append({'title': playlist_title, 'image_url': playlist_image, 'num_tracks': num_tracks})
+            num_tracks = get_number_of_tracks(playlist_id, youtube_service)
+            playlists_data.append({
+                'title': playlist_title,
+                'image_url': playlist_image,
+                'num_tracks': num_tracks,
+                'playlist_id': playlist_id
+            })
 
-        # Render the template with playlist information
         return render(request, 'youtube_playlists.html', {'playlists': playlists_data})
-
     except Exception as e:
-        # Handle exceptions
-        return HttpResponse(f"Failed to retrieve playlists. Error: {str(e)}", status=500)
+        logging.error(f"An unexpected error occurred: {str(e)}")
+        return HttpResponse(f"An unexpected error occurred. Error: {str(e)}", status=500)
+
+
+def refresh_access_token(refresh_token, client_id, client_secret, youtube_credentials):
+    url = 'https://oauth2.googleapis.com/token'
+    data = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'refresh_token': refresh_token,
+        'grant_type': 'refresh_token'
+    }
+
+    response = requests.post(url, data=data)
+
+    if response.status_code == 200:
+        # Update the access token in the database
+        new_access_token = response.json()['access_token']
+        youtube_credentials.access_token = new_access_token
+        youtube_credentials.save()
+        return new_access_token
+    else:
+        raise Exception(f"Error: {response.status_code}, {response.text}")
+
+
+def build_youtube_service(access_token):
+    return build('youtube', 'v3', credentials=Credentials(access_token))
