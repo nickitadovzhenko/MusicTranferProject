@@ -8,7 +8,7 @@
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="sourcePlatform" class="form-label">Choose from what platform would you like to transfer your playlists</label>
-                <select id="sourcePlatform" class="form-select">
+                <select id="sourcePlatform" class="form-select" onchange="updateTransferButtonHref()">
                     <option value="spotify">Spotify</option>
                     <option value="appleMusic">Apple Music</option>
                     <option value="youtube">YouTube</option>
@@ -29,12 +29,28 @@
     </div>
     <div class="row mt-4">
         <div class="col-12 text-center">
-            <a class="btn btn-success btn-lg" href="{% url 'get_playlists' %}">TRANSFER</a>
+            <a id="transferButton" class="btn btn-success btn-lg" href="{% url 'get_playlists' %}">TRANSFER</a>
         </div>
     </div>
 </div>
 
+<script>
+    function updateTransferButtonHref() {
+        const sourcePlatform = document.getElementById('sourcePlatform').value;
+        const transferButton = document.getElementById('transferButton');
+
+        if (sourcePlatform === 'spotify') {
+            transferButton.href = "{% url 'get_playlists' %}";
+        } else if (sourcePlatform === 'youtube') {
+            transferButton.href = "{% url 'get_playlists_youtube' %}";
+        } else {
+            // You can set a default href or leave it unchanged if other platforms are added in the future
+            transferButton.href = "#";
+        }
+    }
+
+    // Call the function once on page load to set the initial state correctly
+    window.onload = updateTransferButtonHref;
+</script>
+
 {% endblock content %}
-
-    
-
