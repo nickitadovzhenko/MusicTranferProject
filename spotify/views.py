@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.conf import settings
-from core.models import Spotify_Token
+from core.models import Spotify_Token, YouTubeCredentials
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 
@@ -142,6 +142,7 @@ def get_authorization(request):
     try:
         spotify_token = Spotify_Token.objects.get(user=request.user)
         access_token = spotify_token.access_token
+        youtube_credentials = YouTubeCredentials.objects.get(user=request.user)
         if is_token_valid(access_token):
             return access_token
         else:
