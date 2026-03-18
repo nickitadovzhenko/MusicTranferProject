@@ -28,5 +28,7 @@ urlpatterns = [
 
     path('transfer', views.transfer_and_create_youtube_playlist, name='transfer'),
 
-    path('transfer_to_spotify', views.transfer_and_create_spotify_playlist, name = 'transfer_to_spotify')
+    path('transfer_to_spotify', views.transfer_and_create_spotify_playlist, name = 'transfer_to_spotify'),
+    path('spotify-to-spotify/playlists/', views.get_playlists_s2s, name='get_playlists_s2s'),
+    path('spotify-to-spotify/transfer/', views.transfer_spotify_to_spotify_init, name='transfer_spotify_to_spotify_init')
 ]

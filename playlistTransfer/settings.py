@@ -22,10 +22,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#5tf2d*)*=u%$95^3v&9&35r0^#^(py^n5q59+c3mm)m*x_%2l'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-#5tf2d*)*=u%$95^3v&9&35r0^#^(py^n5q59+c3mm)m*x_%2l')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = []
 
@@ -87,9 +87,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'playlistTransfer',
-        'USER': 'nickadmin',
-        'PASSWORD': 'rootroot',
-        'HOST': '',
+        'USER': 'nick',
+        'PASSWORD': 'Vader',
+        'HOST': '127.0.0.1',
         "PORT": '3306',
     }
 }
