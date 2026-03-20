@@ -1,40 +1,15 @@
-{% include "base.html" %} 
-
-{% load static %} 
-
+{% extends "base.html" %}
+{% block title %}Verification Failed – Streamify{% endblock %}
 {% block content %}
-
-<style>
-    body {
-      
-      background-color: gray;
-
-
-    }
-
-
-
-</style>
-<body>
-  <br>
-
-  <div class="container bg-white shadow-md p-5 form-layout">
-    <div class="text-center">
-        <i class="fa-solid fa-exclamation text-danger fa-3x"></i>
-        
-        <br> <br>
-        
-        <h5> <strong>Your account is not verified</strong></h5>
-        
-        <hr>
-
-        <p>Please contact admin support</p>
-
+<div class="page-sm" style="text-align:center;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+    <h1 style="font-size:1.5rem; font-weight:700; margin-bottom:0.75rem;">Verification failed</h1>
+    <p style="color:var(--text-muted); margin-bottom:2rem; line-height:1.6;">
+        The verification link is invalid or has expired. Please try signing up again.
+    </p>
+    <div style="display:flex; gap:0.75rem; justify-content:center;">
+        <a href="{% url 'signup' %}" class="btn btn-green">Sign Up Again</a>
+        <a href="{% url 'my-login' %}" class="btn btn-ghost">Login</a>
     </div>
-  </div>
-    
-</body>
-
-
-
-{% endblock content %}
+</div>
+{% endblock %}

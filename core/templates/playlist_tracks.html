@@ -1,9 +1,25 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% block title %}Tracks – Streamify{% endblock %}
 {% block content %}
-<h2>Tracks in Playlist {{ playlist_id }}:</h2>
-<ul>
-    {% for track in tracks %}
-        <li>{{ track.name }} - {{ track.artists }}</li>
-    {% endfor %}
-</ul>
+<div class="page" style="max-width: 720px;">
+    <div style="margin-bottom: 2rem;">
+        <a href="javascript:history.back()" style="color:var(--text-muted); font-size:0.875rem; text-decoration:none;">← Back to Playlists</a>
+    </div>
+    <h1 class="page-title">Playlist Tracks</h1>
+    <p class="page-subtitle">{{ tracks|length }} tracks in this playlist.</p>
+
+    <div style="display:flex; flex-direction:column; gap:0.5rem;">
+        {% for track in tracks %}
+        <div class="card" style="padding: 0.9rem 1.25rem; display:flex; align-items:center; gap:1rem;">
+            <div style="color:var(--text-muted); font-size:0.8rem; width:2rem; text-align:right; flex-shrink:0;">{{ forloop.counter }}</div>
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:500; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ track.name }}</div>
+                <div style="color:var(--text-muted); font-size:0.8rem;">{{ track.artists }}</div>
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center; padding:3rem; color:var(--text-muted);">No tracks found.</div>
+        {% endfor %}
+    </div>
+</div>
 {% endblock %}

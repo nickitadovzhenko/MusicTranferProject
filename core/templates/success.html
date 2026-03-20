@@ -1,11 +1,10 @@
 {% extends "base.html" %}
-
+{% block title %}Transfer Complete – Streamify{% endblock %}
 {% block content %}
-
-<a class="btn btn-primary" href="{% url 'home' %}">Click Me</a>
-
-
-{% endblock content %}
-
-
-
+<div class="page-sm" style="text-align:center;">
+    <div style="font-size: 3.5rem; margin-bottom: 1rem;">🎉</div>
+    <h1 style="font-size:1.6rem; font-weight:700; margin-bottom:0.75rem;">Transfer Complete!</h1>
+    <p style="color:var(--text-muted); margin-bottom:2.5rem; line-height:1.6;">Your playlists have been successfully transferred. Head to your destination platform to find them.</p>
+    <a href="{% url 'home' %}" class="btn btn-green btn-lg">Start Another Transfer</a>
+</div>
+{% endblock %}

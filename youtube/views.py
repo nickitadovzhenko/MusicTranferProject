@@ -23,23 +23,14 @@ from google.auth.transport.requests import Request
 import logging  # For logging errors
 
 
+from youtube.services import (
+    get_flow, 
+    credentials_to_dict, 
+    refresh_access_token, 
+    get_youtube_service_from_credentials
+)
+
 # Create your views here.
-
-def get_flow():
-    return Flow.from_client_config(
-        {
-            "web": {
-                "client_id": settings.GOOGLE_CLIENT_ID,
-                "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token"
-            }
-        },
-        scopes=['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.readonly',
-                'https://www.googleapis.com/auth/youtube.force-ssl']
-    )
-
 
 @login_required
 def authorize_youtube(request):
@@ -84,35 +75,11 @@ def youtube_callback(request):
     return redirect('home')
 
 
-def credentials_to_dict(credentials):
-    return {'token': credentials.token,
-            'refresh_token': credentials.refresh_token,
-            'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id,
-            'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes
-            }
-
 
 def disconnect_youtube(request):
     YouTubeCredentials.objects.filter(user=request.user).delete()
     return redirect('dashboard')
 
-
-def get_youtube_service(credentials):
-    # Load credentials
-    creds = Credentials(
-        token=credentials.access_token,
-        refresh_token=credentials.refresh_token,
-        token_uri=credentials.token_uri,
-        client_id=credentials.client_id,
-        client_secret=credentials.client_secret,
-        scopes=credentials.scopes
-    )
-
-    # Build the YouTube service
-    service = build('youtube', 'v3', credentials=creds)
-    return service
 
 
 @login_required
@@ -141,7 +108,7 @@ def get_youtube_playlists(request):
                                             settings.GOOGLE_CLIENT_SECRET, youtube_credentials)
 
         # Build YouTube service with the refreshed access token
-        youtube_service = build_youtube_service(access_token)
+        youtube_service = get_youtube_service_from_credentials(youtube_credentials)
 
         # Call YouTube API to retrieve playlists
         playlists_response = youtube_service.playlists().list(
@@ -171,26 +138,4 @@ def get_youtube_playlists(request):
         return HttpResponse(f"An unexpected error occurred. Error: {str(e)}", status=500)
 
 
-def refresh_access_token(refresh_token, client_id, client_secret, youtube_credentials):
-    url = 'https://oauth2.googleapis.com/token'
-    data = {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'refresh_token': refresh_token,
-        'grant_type': 'refresh_token'
-    }
 
-    response = requests.post(url, data=data)
-
-    if response.status_code == 200:
-        # Update the access token in the database
-        new_access_token = response.json()['access_token']
-        youtube_credentials.access_token = new_access_token
-        youtube_credentials.save()
-        return new_access_token
-    else:
-        raise Exception(f"Error: {response.status_code}, {response.text}")
-
-
-def build_youtube_service(access_token):
-    return build('youtube', 'v3', credentials=Credentials(access_token))

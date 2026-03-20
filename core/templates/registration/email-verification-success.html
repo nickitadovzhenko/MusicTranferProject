@@ -1,40 +1,12 @@
-{% include "base.html" %} 
-
-{% load static %} 
-
+{% extends "base.html" %}
+{% block title %}Account Verified – Streamify{% endblock %}
 {% block content %}
-
-<style>
-    body {
-      
-      background-color: gray;
-
-
-    }
-
-
-
-</style>
-<body>
-  <br>
-
-  <div class="container bg-white shadow-md p-5 form-layout">
-    <div class="text-center">
-        <i class="fa-solid fa-check text-success fa-3x"></i>
-        
-        <br> <br>
-        
-        <h5> <strong>Your account is now active</strong></h5>
-        
-        <hr>
-
-        <p>Please proceed to login</p>
-
-    </div>
-  </div>
-    
-</body>
-
-
-
-{% endblock content %}
+<div class="page-sm" style="text-align:center;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+    <h1 style="font-size:1.5rem; font-weight:700; margin-bottom:0.75rem;">Email verified!</h1>
+    <p style="color:var(--text-muted); margin-bottom:2rem; line-height:1.6;">
+        Your account is now active. Log in to start transferring your playlists.
+    </p>
+    <a href="{% url 'my-login' %}" class="btn btn-green">Go to Login</a>
+</div>
+{% endblock %}

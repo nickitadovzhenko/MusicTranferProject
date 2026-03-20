@@ -1,6 +1,4 @@
-import logging
-
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from googleapiclient.errors import HttpError
 
 from .forms import CreateUserForm, LoginForm
@@ -9,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from .token import user_tokenizer_generate
 from django.contrib.auth.models import User
 from django.conf import settings
-from youtube.views import get_youtube_service
+from youtube.services import get_youtube_service_from_credentials
 from random import randint
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes, force_str
@@ -17,13 +15,13 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.models import auth
 from django.contrib.auth import authenticate
 from django.contrib import messages
-from .models import Spotify_Token, YouTubeCredentials
+from .models import Spotify_Token, YouTubeCredentials, TransferJob
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
-from api.requests.get_user_token import exchange_code_for_tokens
-from spotify.views import get_authorization
+from spotify.services import get_valid_access_token
+from .tasks import transfer_spotify_to_youtube_task, transfer_youtube_to_spotify_task, transfer_spotify_to_spotify_task
 
 
 # Create your views here.
@@ -143,6 +141,7 @@ def user_logout(request):
     return redirect("home")
 
 
+@login_required
 def dashboard(request):
     if Spotify_Token.objects.filter(user=request.user):
         spoti_status = 'connected'
@@ -163,7 +162,7 @@ def store_selected_tracks(request):
         all_tracks = []
 
         # Get access token for Spotify API
-        access_token = get_authorization(request)
+        access_token = get_valid_access_token(request.user)
 
         sp = spotipy.Spotify(auth=access_token)
 
@@ -202,88 +201,24 @@ def transfer_and_create_youtube_playlist(request):
         if not selected_playlist_ids:
             return render(request, 'error_page.html', {'error_message': 'No playlists selected'})
 
-        try:
-            spotify_token = Spotify_Token.objects.get(user=request.user)
-            youtube_credentials = YouTubeCredentials.objects.get(user=request.user)
-        except (Spotify_Token.DoesNotExist, YouTubeCredentials.DoesNotExist) as e:
-            return render(request, 'error_page.html', {'error_message': str(e)})
-
-        sp = spotipy.Spotify(auth=spotify_token.access_token)
-        youtube_service = get_youtube_service(youtube_credentials)
-
-        for spotify_playlist_id in selected_playlist_ids:
-            # Handle 'Liked Songs' explicitly
-            try:
-                if spotify_playlist_id == 'liked_songs':
-                    playlist_name = "Liked Songs"
-                    playlist_url = "Spotify Saved Tracks"
-                    results = sp.current_user_saved_tracks()
-                else:
-                    spotify_playlist = sp.playlist(spotify_playlist_id)
-                    playlist_name = spotify_playlist['name']
-                    playlist_url = spotify_playlist['external_urls']['spotify']
-                    results = sp.playlist_tracks(spotify_playlist_id)
-
-                # Create YouTube playlist
-                playlist_snippet = {
-                    'title': playlist_name,
-                    'description': f"Transferred from Spotify: {playlist_url}",
-                }
-                playlist_status = {'privacyStatus': 'public'}
-                request_body = {"snippet": playlist_snippet, "status": playlist_status}
-                response = youtube_service.playlists().insert(part="snippet,status", body=request_body).execute()
-                youtube_playlist_id = response['id']
-            except HttpError as e:
-                logging.error(f"An error occurred creating a playlist: {e}")
-                return render(request, 'error_page.html', {'error_message': 'Error creating playlist'})
-
-            # Fetch Spotify tracks and add to YouTube (with error handling)
-            try:
-                tracks = results['items']
-
-                while results['next']:
-                    results = sp.next(results)
-                    tracks.extend(results['items'])
-
-                for track in tracks:
-                    track_name = track['track']['name']
-                    artist_name = track['track']['artists'][0]['name']
-
-                    # Search YouTube for the track
-                    search_response = youtube_service.search().list(
-                        q=f"{track_name} {artist_name}",
-                        part="id",
-                        type="video",
-                        maxResults=1
-                    ).execute()
-
-                    if search_response['items']:
-                        video_id = search_response['items'][0]['id']['videoId']
-
-                        # Add video to the YouTube playlist
-                        playlist_item_snippet = {
-                            'playlistId': youtube_playlist_id,
-                            'resourceId': {
-                                'kind': 'youtube#video',
-                                'videoId': video_id
-                            }
-                        }
-                        request = youtube_service.playlistItems().insert(
-                            part="snippet", body={"snippet": playlist_item_snippet}
-                        )
-                        response = request.execute()
-            except Exception as e:  # Catch more general exceptions during track transfer
-                logging.error(f"An error occurred transferring tracks: {e}")
-                return render(request, 'error_page.html', {'error_message': 'Error transferring tracks'})
-
-        return redirect('get_playlists_youtube')
+        # Trigger Celery task
+        result = transfer_spotify_to_youtube_task.delay(request.user.id, selected_playlist_ids)
+        
+        # Create TransferJob
+        TransferJob.objects.create(
+            user=request.user,
+            task_id=result.id,
+            playlist_count=len(selected_playlist_ids)
+        )
+        
+        return redirect('transfer_progress', task_id=result.id)
 
     return render(request, 'error_page.html', {'error_message': 'Invalid request method'})
 
 @login_required
 def get_playlists_s2s(request):
     try:
-        access_token = get_authorization(request)
+        access_token = get_valid_access_token(request.user)
         sp = spotipy.Spotify(auth=access_token)
         playlists = sp.current_user_playlists()
         
@@ -310,7 +245,7 @@ def transfer_spotify_to_spotify_init(request):
         
         request.session['s2s_playlists'] = selected_playlist_ids
         
-        from spotify.views import get_authorization_url
+        from spotify.services import get_authorization_url
         link = get_authorization_url(state="s2s", show_dialog=True)
         return redirect(link)
     return render(request, 'error_page.html', {'error_message': 'Invalid request method'})
@@ -319,89 +254,37 @@ def transfer_spotify_to_spotify_init(request):
 def transfer_and_create_spotify_playlist(request):
     if request.method == 'POST':
         selected_playlist_ids = request.POST.getlist('playlists')
-        print(selected_playlist_ids)
-        # Check if any playlists were selected
         if not selected_playlist_ids:
             return render(request, 'error_page.html', {'error_message': 'No playlists selected'})
 
-        # Get Spotify and YouTube credentials
-        try:
-            spotify_token = Spotify_Token.objects.get(user=request.user)
-            youtube_credentials = YouTubeCredentials.objects.get(user=request.user)
-        except (Spotify_Token.DoesNotExist, YouTubeCredentials.DoesNotExist) as e:
-            return render(request, 'error_page.html', {'error_message': str(e)})
-
-        sp = spotipy.Spotify(auth=spotify_token.access_token)
-        youtube_service = get_youtube_service(youtube_credentials)
-
-        for youtube_playlist_id in selected_playlist_ids:
-            # Get YouTube playlist details (add error handling)
-            try:
-                request = youtube_service.playlists().list(
-                    part="snippet",
-                    id=youtube_playlist_id
-                )
-                response = request.execute()
-
-                if not response['items']:
-                    logging.warning(f"YouTube playlist not found: {youtube_playlist_id}")
-                    continue  # Skip to the next playlist if not found
-
-                youtube_playlist = response['items'][0]
-            except HttpError as e:
-                logging.error(f"An error occurred fetching playlist details: {e}")
-                return render(request, 'error_page.html', {'error_message': 'Error fetching YouTube playlist details'})
-
-            # Create Spotify playlist with the same name (add error handling)
-            try:
-                spotify_playlist = sp.user_playlist_create(
-                    user=sp.me()['id'],
-                    name=youtube_playlist['snippet']['title'],
-                    public=True,  # You can set this to False for a private playlist
-                    description=f"Transferred from YouTube playlist: {youtube_playlist['snippet']['title']}"
-                )
-                spotify_playlist_id = spotify_playlist['id']
-            except Exception as e:
-                logging.error(f"An error occurred creating Spotify playlist: {e}")
-                return render(request, 'error_page.html', {'error_message': 'Error creating Spotify playlist'})
-
-            # Fetch YouTube playlist tracks and add to Spotify (with error handling)
-            try:
-                request = youtube_service.playlistItems().list(
-                    part="snippet",
-                    playlistId=youtube_playlist_id,
-                    maxResults=50  # Adjust as needed
-                )
-                response = request.execute()
-                youtube_playlist_items = response['items']
-
-                while response.get('nextPageToken'):
-                    request = youtube_service.playlistItems().list(
-                        part="snippet",
-                        playlistId=youtube_playlist_id,
-                        maxResults=50,
-                        pageToken=response['nextPageToken']
-                    )
-                    response = request.execute()
-                    youtube_playlist_items.extend(response['items'])
-
-                track_uris = []
-                for item in youtube_playlist_items:
-                    video_id = item['snippet']['resourceId']['videoId']
-                    video_title = item['snippet']['title']
-
-                    # Search Spotify for the track
-                    search_results = sp.search(q=video_title, type='track', limit=1)
-                    if search_results['tracks']['items']:
-                        track_uris.append(search_results['tracks']['items'][0]['uri'])
-
-                if track_uris:
-                    sp.playlist_add_items(playlist_id=spotify_playlist_id, items=track_uris)
-
-            except Exception as e:
-                logging.error(f"An error occurred transferring tracks: {e}")
-                return render(request, 'error_page.html', {'error_message': 'Error transferring tracks'})
-
-        return redirect('get_playlists')
+        # Trigger Celery task
+        result = transfer_youtube_to_spotify_task.delay(request.user.id, selected_playlist_ids)
+        
+        # Create TransferJob
+        TransferJob.objects.create(
+            user=request.user,
+            task_id=result.id,
+            playlist_count=len(selected_playlist_ids)
+        )
+        
+        return redirect('transfer_progress', task_id=result.id)
 
     return render(request, 'error_page.html', {'error_message': 'Invalid request method'})
+
+
+@login_required
+def transfer_progress(request, task_id):
+    job = get_object_or_404(TransferJob, task_id=task_id, user=request.user)
+    return render(request, 'transfer_progress.html', {'job': job})
+
+
+@login_required
+def transfer_status(request, task_id):
+    job = get_object_or_404(TransferJob, task_id=task_id, user=request.user)
+    return JsonResponse({
+        'status': job.get_status_display(),
+        'error': job.error_msg,
+        'state': job.status,
+        'processed': job.processed_count,
+        'total': job.playlist_count
+    })
