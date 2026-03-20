@@ -8,7 +8,7 @@
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="sourcePlatform" class="form-label">Choose from what platform would you like to transfer your playlists</label>
-                <select id="sourcePlatform" class="form-select" onchange="updateDestinationPlatform()">
+                <select id="sourcePlatform" class="form-select">
                     <option value="spotify">Spotify</option>
                     <option value="youtube">YouTube</option>
                 </select>
@@ -18,7 +18,7 @@
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="destinationPlatform" class="form-label">Choose to what platform would you like to transfer your playlists</label>
-                <select id="destinationPlatform" class="form-select" onchange="updateSourcePlatform()">
+                <select id="destinationPlatform" class="form-select">
                     <option value="spotify">Spotify</option>
                     <option value="youtube">YouTube</option>
                 </select>
@@ -33,38 +33,34 @@
 </div>
 
 <script>
-    function updateDestinationPlatform() {
+    function updateTransferButton() {
         const sourcePlatform = document.getElementById('sourcePlatform').value;
-        const destinationPlatform = document.getElementById('destinationPlatform');
+        const destinationPlatform = document.getElementById('destinationPlatform').value;
         const transferButton = document.getElementById('transferButton');
         
-        if (sourcePlatform === 'spotify') {
-            destinationPlatform.value = 'youtube';
+        if (sourcePlatform === 'spotify' && destinationPlatform === 'youtube') {
             transferButton.href = "{% url 'get_playlists' %}";
-        } else if (sourcePlatform === 'youtube') {
-            destinationPlatform.value = 'spotify';
+            transferButton.classList.remove('disabled');
+        } else if (sourcePlatform === 'youtube' && destinationPlatform === 'spotify') {
             transferButton.href = "{% url 'get_playlists_youtube' %}";
+            transferButton.classList.remove('disabled');
+        } else if (sourcePlatform === 'spotify' && destinationPlatform === 'spotify') {
+            transferButton.href = "{% url 'get_playlists_s2s' %}";
+            transferButton.classList.remove('disabled');
+        } else {
+            // YouTube to YouTube is not supported yet
+            transferButton.href = "#";
+            transferButton.classList.add('disabled');
         }
     }
 
-    function updateSourcePlatform() {
-        const destinationPlatform = document.getElementById('destinationPlatform').value;
-        const sourcePlatform = document.getElementById('sourcePlatform');
-        const transferButton = document.getElementById('transferButton');
-        
-        if (destinationPlatform === 'spotify') {
-            sourcePlatform.value = 'youtube';
-            transferButton.href = "{% url 'get_playlists_youtube' %}";
-        } else if (destinationPlatform === 'youtube') {
-            sourcePlatform.value = 'spotify';
-            transferButton.href = "{% url 'get_playlists' %}";
-        }
-    }
+    // Bind the new function to the onchange events
+    document.getElementById('sourcePlatform').onchange = updateTransferButton;
+    document.getElementById('destinationPlatform').onchange = updateTransferButton;
 
     // Call the functions once on page load to set the initial state correctly
     window.onload = function() {
-        updateDestinationPlatform();
-        updateSourcePlatform();
+        updateTransferButton();
     };
 </script>
 

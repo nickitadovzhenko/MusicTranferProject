@@ -212,13 +212,22 @@ def transfer_and_create_youtube_playlist(request):
         youtube_service = get_youtube_service(youtube_credentials)
 
         for spotify_playlist_id in selected_playlist_ids:
-            spotify_playlist = sp.playlist(spotify_playlist_id)
-
-            # Create YouTube playlist (add error handling)
+            # Handle 'Liked Songs' explicitly
             try:
+                if spotify_playlist_id == 'liked_songs':
+                    playlist_name = "Liked Songs"
+                    playlist_url = "Spotify Saved Tracks"
+                    results = sp.current_user_saved_tracks()
+                else:
+                    spotify_playlist = sp.playlist(spotify_playlist_id)
+                    playlist_name = spotify_playlist['name']
+                    playlist_url = spotify_playlist['external_urls']['spotify']
+                    results = sp.playlist_tracks(spotify_playlist_id)
+
+                # Create YouTube playlist
                 playlist_snippet = {
-                    'title': spotify_playlist['name'],
-                    'description': f"Transferred from Spotify playlist: {spotify_playlist['external_urls']['spotify']}",
+                    'title': playlist_name,
+                    'description': f"Transferred from Spotify: {playlist_url}",
                 }
                 playlist_status = {'privacyStatus': 'public'}
                 request_body = {"snippet": playlist_snippet, "status": playlist_status}
@@ -228,9 +237,8 @@ def transfer_and_create_youtube_playlist(request):
                 logging.error(f"An error occurred creating a playlist: {e}")
                 return render(request, 'error_page.html', {'error_message': 'Error creating playlist'})
 
-            # Fetch Spotify playlist tracks and add to YouTube (with error handling)
+            # Fetch Spotify tracks and add to YouTube (with error handling)
             try:
-                results = sp.playlist_tracks(spotify_playlist_id)
                 tracks = results['items']
 
                 while results['next']:
@@ -272,6 +280,40 @@ def transfer_and_create_youtube_playlist(request):
 
     return render(request, 'error_page.html', {'error_message': 'Invalid request method'})
 
+@login_required
+def get_playlists_s2s(request):
+    try:
+        access_token = get_authorization(request)
+        sp = spotipy.Spotify(auth=access_token)
+        playlists = sp.current_user_playlists()
+        
+        # Inject Liked Songs
+        saved_tracks_info = sp.current_user_saved_tracks(limit=1)
+        liked_songs = {
+            'id': 'liked_songs',
+            'name': 'Liked Songs',
+            'images': [{'url': 'https://misc.scdn.co/liked-songs/liked-songs-300.png'}],
+            'tracks': {'total': saved_tracks_info['total']}
+        }
+        all_playlists = [liked_songs] + playlists['items']
+        
+        return render(request, "transfer_s2s.html", {"playlists": all_playlists})
+    except Exception as e:
+        return render(request, 'error_page.html', {'error_message': str(e)})
+
+@login_required
+def transfer_spotify_to_spotify_init(request):
+    if request.method == 'POST':
+        selected_playlist_ids = request.POST.getlist('playlists')
+        if not selected_playlist_ids:
+            return render(request, 'error_page.html', {'error_message': 'No playlists selected'})
+        
+        request.session['s2s_playlists'] = selected_playlist_ids
+        
+        from spotify.views import get_authorization_url
+        link = get_authorization_url(state="s2s", show_dialog=True)
+        return redirect(link)
+    return render(request, 'error_page.html', {'error_message': 'Invalid request method'})
 
 @login_required
 def transfer_and_create_spotify_playlist(request):
