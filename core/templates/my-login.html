@@ -1,64 +1,40 @@
-{% include "base.html" %} 
-{% load static %} 
-
+{% extends "base.html" %}
 {% load crispy_forms_tags %}
-
-
+{% block title %}Login – Streamify{% endblock %}
 {% block content %}
+<div class="page-sm">
+    <div class="card" style="padding: 2.5rem;">
+        <div style="text-align:center; margin-bottom: 2rem;">
+            <div style="font-size:2rem; margin-bottom:0.75rem;">◈</div>
+            <h1 style="font-size:1.4rem; font-weight:700; letter-spacing:-0.5px;">Welcome back</h1>
+            <p style="color:var(--text-muted); font-size:0.875rem; margin-top:0.35rem;">Sign in to your Streamify account</p>
+        </div>
 
-  <style>
-    body {
-          background-color: gray;
-      }
+        <form method="POST" autocomplete="off">
+            {% csrf_token %}
 
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" name="username" placeholder="your_username" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" placeholder="••••••••" required>
+            </div>
 
+            {% if form.non_field_errors %}
+                <div class="alert alert-error">{{ form.non_field_errors }}</div>
+            {% endif %}
 
-  </style>
+            <button type="submit" class="btn btn-green" style="width:100%; margin-top:0.5rem; padding:0.85rem; font-size:0.95rem;">
+                Sign In
+            </button>
+        </form>
 
-
-
-
-<body>
-  <br>
-
-   <div class="container bg-white shadow-md p-5 form-layout">
-
-            <h3> Login to your account </h3>
-
-            <hr>
-
-            <br>
-
-            <form method="POST" autocomplete="off">
-
-                {% csrf_token %}
-
-                {{form.username|as_crispy_field}}
-
-
-                <br> 
-
-
-                {{form.password|as_crispy_field}}
-
-                <br> 
-
-                
-                <button type="submit" class="btn btn-primary navbar-btn text-white w-100 p-2"> &nbsp; Login </button>
-                <br>
-                <br>
-                {{form.non_field_errors}}
-                <div class="text-center">
-                  <a href="{% url 'signup' %}">Don't have an account?</a>
-
-                  <br><br>
-
-                  <a href="#"> Forgotten your password?</a>
-
-
-                </div>
-            </form>
-      </div>
-</body>
-<br><br>
-{% endblock content %}
+        <hr class="divider">
+        <p style="text-align:center; color:var(--text-muted); font-size:0.875rem;">
+            Don't have an account? <a href="{% url 'signup' %}" style="color:var(--accent-green); font-weight:600; text-decoration:none;">Create one</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

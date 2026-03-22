@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Transfer Progress – Streamify{% endblock %}
+
+{% block content %}
+<div class="page-sm" style="text-align:center;">
+    <div id="status-icon" style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+    <h1 id="status-text" style="font-size:1.5rem; font-weight:700; margin-bottom:0.75rem;">Transfer in progress...</h1>
+    
+    <div class="card" style="margin-bottom:2rem; padding:1.5rem;">
+        <p style="color:var(--text-muted); margin-bottom:1rem; line-height:1.6;">
+            We are moving your music. This might take a few minutes depending on the size of your playlists. You can stay on this page or come back later.
+        </p>
+        <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
+            <div id="progress-bar" style="background: var(--accent-green); width: 0%; height: 100%; transition: width 0.5s ease;"></div>
+        </div>
+    </div>
+
+    <div id="actions" style="display:none; gap:1rem; justify-content:center;">
+        <a href="{% url 'dashboard' %}" class="btn btn-green">Go to Dashboard</a>
+    </div>
+
+    <div id="error-box" style="display:none; margin-top:1.5rem; color:#ff4d4d; background: rgba(255,77,77,0.1); padding:1rem; border-radius:0.75rem;">
+        <p id="error-message"></p>
+    </div>
+</div>
+
+<script>
+    const taskId = "{{ job.task_id }}";
+    const statusText = document.getElementById('status-text');
+    const statusIcon = document.getElementById('status-icon');
+    const progressBar = document.getElementById('progress-bar');
+    const actions = document.getElementById('actions');
+    const errorBox = document.getElementById('error-box');
+    const errorMessage = document.getElementById('error-message');
+
+    function checkStatus() {
+        fetch(`/transfer/status/${taskId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.total > 0) {
+                    const percent = Math.max(10, (data.processed / data.total) * 100);
+                    progressBar.style.width = percent + '%';
+                }
+
+                if (data.state === 'running') {
+                    statusText.innerText = `Transferring playlist ${data.processed + 1} of ${data.total}...`;
+                } else if (data.state === 'done') {
+                    statusIcon.innerText = '✅';
+                    statusText.innerText = 'Transfer Complete!';
+                    progressBar.style.width = '100%';
+                    actions.style.display = 'flex';
+                } else if (data.state === 'error') {
+                    statusIcon.innerText = '❌';
+                    statusText.innerText = 'Transfer Failed';
+                    errorBox.style.display = 'block';
+                    errorMessage.innerText = data.error || 'An unknown error occurred.';
+                    actions.style.display = 'flex';
+                }
+
+                if (data.state !== 'done' && data.state !== 'error') {
+                    setTimeout(checkStatus, 2000);
+                }
+            })
+            .catch(err => {
+                console.error('Status check failed:', err);
+                setTimeout(checkStatus, 5000);
+            });
+    }
+
+    checkStatus();
+</script>
+{% endblock %}

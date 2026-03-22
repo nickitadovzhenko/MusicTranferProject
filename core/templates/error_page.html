@@ -1,8 +1,13 @@
-{% extends 'base.html' %}
-
+{% extends "base.html" %}
+{% block title %}Error – Streamify{% endblock %}
 {% block content %}
-    <h1>Error</h1>
-    <p>{{ error_message }}</p>
-    <a href="{% url 'home' %}" class="btn btn-primary">Return to Home Page</a>
-    <a href="{% url 'dashboard' %}" class = 'btn btn-primary'>Go to Dashboard</a>
-{% endblock %} 
+<div class="page-sm" style="text-align:center;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+    <h1 style="font-size:1.5rem; font-weight:700; margin-bottom:0.75rem;">Something went wrong</h1>
+    <p style="color:var(--text-muted); margin-bottom:2rem; line-height:1.6;">{{ error_message }}</p>
+    <div style="display:flex; gap:0.75rem; justify-content:center;">
+        <a href="javascript:history.back()" class="btn btn-ghost">← Go Back</a>
+        <a href="{% url 'home' %}" class="btn btn-green">Home</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,67 +1,109 @@
-{% include "base.html" %}
-{% load static %}
+{% extends "base.html" %}
+{% block title %}Streamify – Transfer Your Music{% endblock %}
 {% block content %}
+<div class="page" style="padding-top: 5rem;">
 
-<div class="container mt-5">
-    <div class="row">
-        <!-- First Column -->
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="sourcePlatform" class="form-label">Choose from what platform would you like to transfer your playlists</label>
-                <select id="sourcePlatform" class="form-select">
-                    <option value="spotify">Spotify</option>
-                    <option value="youtube">YouTube</option>
-                </select>
-            </div>
+    <!-- Hero -->
+    <div style="text-align:center; max-width: 640px; margin: 0 auto 4rem;">
+        <div style="display:inline-flex; align-items:center; gap:0.5rem; background:rgba(29,185,84,0.1); border:1px solid rgba(29,185,84,0.25); border-radius:50px; padding:0.35rem 1rem; font-size:0.8rem; color:var(--accent-green); font-weight:600; margin-bottom:1.5rem;">
+            ✦ &nbsp;Seamless Playlist Transfer
         </div>
-        <!-- Second Column -->
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="destinationPlatform" class="form-label">Choose to what platform would you like to transfer your playlists</label>
-                <select id="destinationPlatform" class="form-select">
-                    <option value="spotify">Spotify</option>
-                    <option value="youtube">YouTube</option>
-                </select>
+        <h1 style="font-size:3rem; font-weight:800; letter-spacing:-1px; line-height:1.1; margin-bottom:1rem;">
+            Move your music<br><span style="color:var(--accent-green);">everywhere.</span>
+        </h1>
+        <p style="color:var(--text-muted); font-size:1.05rem; line-height:1.6; margin-bottom:2rem;">
+            Transfer playlists between Spotify and YouTube in seconds. No manual work, no data loss.
+        </p>
+        {% if not user.is_authenticated %}
+        <div style="display:flex; gap:0.75rem; justify-content:center;">
+            <a href="{% url 'signup' %}" class="btn btn-green btn-lg">Get Started Free</a>
+            <a href="{% url 'my-login' %}" class="btn btn-ghost btn-lg">Login</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Transfer Widget -->
+    {% if user.is_authenticated %}
+    <div style="max-width: 560px; margin: 0 auto;">
+        <div class="card" style="padding: 2rem;">
+            <p style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); font-weight:600; margin-bottom:1.5rem;">Start a Transfer</p>
+
+            <div class="grid-2" style="margin-bottom: 1.25rem;">
+                <div>
+                    <label style="display:block; font-size:0.78rem; font-weight:600; color:var(--text-muted); margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.05em;">From</label>
+                    <select id="sourcePlatform" class="styled-select" onchange="updateTransferButton()">
+                        <option value="spotify">🎵 Spotify</option>
+                        <option value="youtube">▶ YouTube</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.78rem; font-weight:600; color:var(--text-muted); margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.05em;">To</label>
+                    <select id="destinationPlatform" class="styled-select" onchange="updateTransferButton()">
+                        <option value="youtube">▶ YouTube</option>
+                        <option value="spotify">🎵 Spotify</option>
+                    </select>
+                </div>
             </div>
+
+            <div id="yt-yt-warning" style="display:none;" class="alert alert-error">
+                YouTube → YouTube transfers are not yet supported.
+            </div>
+
+            <a id="transferButton" class="btn btn-green" style="width:100%; margin-top:0.5rem; font-size:1rem; padding:0.85rem;" href="{% url 'get_playlists' %}">
+                Select Playlists →
+            </a>
         </div>
     </div>
-    <div class="row mt-4">
-        <div class="col-12 text-center">
-            <a id="transferButton" class="btn btn-success btn-lg" href="{% url 'get_playlists' %}">TRANSFER</a>
+    {% endif %}
+
+    <!-- Features -->
+    {% if not user.is_authenticated %}
+    <div class="grid-3" style="margin-top: 5rem; gap: 1.25rem;">
+        <div class="card" style="padding: 1.75rem;">
+            <div style="font-size:1.75rem; margin-bottom:1rem;">🔄</div>
+            <h3 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Bidirectional</h3>
+            <p style="color:var(--text-muted); font-size:0.875rem; line-height:1.6;">Transfer from Spotify to YouTube and back. Even Spotify to Spotify.</p>
+        </div>
+        <div class="card" style="padding: 1.75rem;">
+            <div style="font-size:1.75rem; margin-bottom:1rem;">⚡</div>
+            <h3 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Fast & Accurate</h3>
+            <p style="color:var(--text-muted); font-size:0.875rem; line-height:1.6;">Intelligent track matching finds the right song, not just close matches.</p>
+        </div>
+        <div class="card" style="padding: 1.75rem;">
+            <div style="font-size:1.75rem; margin-bottom:1rem;">🔒</div>
+            <h3 style="font-size:1rem; font-weight:700; margin-bottom:0.5rem;">Secure</h3>
+            <p style="color:var(--text-muted); font-size:0.875rem; line-height:1.6;">OAuth-only access. We never store your passwords. Tokens are encrypted.</p>
         </div>
     </div>
+    {% endif %}
+
 </div>
 
 <script>
     function updateTransferButton() {
-        const sourcePlatform = document.getElementById('sourcePlatform').value;
-        const destinationPlatform = document.getElementById('destinationPlatform').value;
-        const transferButton = document.getElementById('transferButton');
-        
-        if (sourcePlatform === 'spotify' && destinationPlatform === 'youtube') {
-            transferButton.href = "{% url 'get_playlists' %}";
-            transferButton.classList.remove('disabled');
-        } else if (sourcePlatform === 'youtube' && destinationPlatform === 'spotify') {
-            transferButton.href = "{% url 'get_playlists_youtube' %}";
-            transferButton.classList.remove('disabled');
-        } else if (sourcePlatform === 'spotify' && destinationPlatform === 'spotify') {
-            transferButton.href = "{% url 'get_playlists_s2s' %}";
-            transferButton.classList.remove('disabled');
+        const src  = document.getElementById('sourcePlatform').value;
+        const dest = document.getElementById('destinationPlatform').value;
+        const btn  = document.getElementById('transferButton');
+        const warn = document.getElementById('yt-yt-warning');
+
+        const routes = {
+            'spotify-youtube': "{% url 'get_playlists' %}",
+            'youtube-spotify': "{% url 'get_playlists_youtube' %}",
+            'spotify-spotify': "{% url 'get_playlists_s2s' %}",
+        };
+        const key = src + '-' + dest;
+        if (src === 'youtube' && dest === 'youtube') {
+            btn.href = '#';
+            btn.style.opacity = '0.4';
+            btn.style.pointerEvents = 'none';
+            warn.style.display = 'block';
         } else {
-            // YouTube to YouTube is not supported yet
-            transferButton.href = "#";
-            transferButton.classList.add('disabled');
+            btn.href = routes[key] || '#';
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = '';
+            warn.style.display = 'none';
         }
     }
-
-    // Bind the new function to the onchange events
-    document.getElementById('sourcePlatform').onchange = updateTransferButton;
-    document.getElementById('destinationPlatform').onchange = updateTransferButton;
-
-    // Call the functions once on page load to set the initial state correctly
-    window.onload = function() {
-        updateTransferButton();
-    };
+    window.onload = updateTransferButton;
 </script>
-
-{% endblock content %}
+{% endblock %}

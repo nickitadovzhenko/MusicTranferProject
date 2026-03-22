@@ -1,66 +1,69 @@
-{% include "base.html" %} 
-{% load static %} 
-
+{% extends "base.html" %}
 {% load crispy_forms_tags %}
-
-
+{% block title %}Create Account – Streamify{% endblock %}
 {% block content %}
+<div class="page-sm">
+    <div class="card" style="padding: 2.5rem;">
+        <div style="text-align:center; margin-bottom: 2rem;">
+            <div style="font-size:2rem; margin-bottom:0.75rem;">✦</div>
+            <h1 style="font-size:1.4rem; font-weight:700; letter-spacing:-0.5px;">Create your account</h1>
+            <p style="color:var(--text-muted); font-size:0.875rem; margin-top:0.35rem;">Free, always. No credit card needed.</p>
+        </div>
 
-  <style>
-    body {
-      
-      background-color: gray;
+        <form method="POST" autocomplete="off">
+            {% csrf_token %}
 
+            <div class="form-group">
+                <label>Username</label>
+                {{ form.username }}
+                {% if form.username.errors %}<ul class="errorlist">{{ form.username.errors }}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                {{ form.email }}
+                {% if form.email.errors %}<ul class="errorlist">{{ form.email.errors }}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                {{ form.password1 }}
+                {% if form.password1.errors %}<ul class="errorlist">{{ form.password1.errors }}</ul>{% endif %}
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                {{ form.password2 }}
+                {% if form.password2.errors %}<ul class="errorlist">{{ form.password2.errors }}</ul>{% endif %}
+            </div>
 
-    }
+            <button type="submit" class="btn btn-green" style="width:100%; margin-top:0.5rem; padding:0.85rem; font-size:0.95rem;">
+                Create Account
+            </button>
+        </form>
 
+        <hr class="divider">
+        <p style="text-align:center; color:var(--text-muted); font-size:0.875rem;">
+            Already have an account? <a href="{% url 'my-login' %}" style="color:var(--accent-green); font-weight:600; text-decoration:none;">Sign in</a>
+        </p>
+    </div>
+</div>
 
-
-  </style>
-
-
-
-
-<body>
-  <br>
-
-  <div class="container bg-white shadow-md p-5 form-layout">
-    <h3>Create your account</h3>
-    <h5>Purchase your favourite items today!</h5>
-
-    <br>
-    <br>
-
-    <form method="POST" autocomplete="off">
-      
-      {% csrf_token %}
-      
-      
-      
-      {{form.username|as_crispy_field}}
-      
-      
-      
-      {{form.email|as_crispy_field}}
-      
-      
-      
-      {{form.password1|as_crispy_field}}
-      
-      <br>
-
-      {{form.password2|as_crispy_field}}
-
-
-      <br>
-      <br>
-      <button
-        type="submit"
-        class="btn btn-primary navbar-btn text-white w-100 p-2">
-        &nbsp; Create Account
-      </button>
-    </form>
-  </div>
-</body>
-
-{% endblock content %}
+<style>
+/* Override crispy input style with our design */
+#id_username, #id_email, #id_password1, #id_password2 {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+    outline: none;
+}
+#id_username:focus, #id_email:focus, #id_password1:focus, #id_password2:focus {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 0 3px var(--accent-green-glow);
+}
+label[for] { display: none; }
+</style>
+{% endblock %}
