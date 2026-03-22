@@ -28,7 +28,8 @@ def exchange_code_for_tokens(authorization_code, redirect_uri, client_id, client
     if response.status_code == 200:
         return response.json()
     else:
-        print(f"Error exchanging code: {response.status_code}")
+        import logging
+        logging.getLogger(__name__).error("Error exchanging Spotify code: %s", response.status_code)
         return None
 
 

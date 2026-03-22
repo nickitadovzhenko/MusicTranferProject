@@ -8,18 +8,19 @@ from .token import user_tokenizer_generate
 from django.contrib.auth.models import User
 from django.conf import settings
 from youtube.services import get_youtube_service_from_credentials
-from random import randint
+import secrets
+import logging
 from django.template.loader import render_to_string
+
+logger = logging.getLogger(__name__)
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.models import auth
 from django.contrib.auth import authenticate
 from django.contrib import messages
-from .models import Spotify_Token, YouTubeCredentials, TransferJob
+from .models import SpotifyToken, YouTubeCredentials, TransferJob
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 from spotify.services import get_valid_access_token
 from .tasks import transfer_spotify_to_youtube_task, transfer_youtube_to_spotify_task, transfer_spotify_to_spotify_task
 
@@ -71,22 +72,18 @@ def signup(request):
 
 
 def email_verification(request, uidb64, token):
-    unique_id = force_str(urlsafe_base64_decode(uidb64))
-    user = User.objects.get(pk=unique_id)
+    try:
+        unique_id = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=unique_id)
+    except (User.DoesNotExist, ValueError, TypeError):
+        return redirect('email-verification-failed')
 
-    # Success
-    if user and user_tokenizer_generate.check_token(user, token):
-
+    if user_tokenizer_generate.check_token(user, token):
         user.is_active = True
-
         user.save()
-
         return redirect('email-verification-success')
 
-    # Failed
-
-    else:
-        return redirect('email-verification-failed')
+    return redirect('email-verification-failed')
 
 
 def email_verification_sent(request):
@@ -143,7 +140,7 @@ def user_logout(request):
 
 @login_required
 def dashboard(request):
-    if Spotify_Token.objects.filter(user=request.user):
+    if SpotifyToken.objects.filter(user=request.user):
         spoti_status = 'connected'
     else:
         spoti_status = 'no_connection'
@@ -155,7 +152,6 @@ def dashboard(request):
 
 
 @login_required
-@csrf_exempt
 def store_selected_tracks(request):
     if request.method == 'POST':
         selected_playlists = request.POST.getlist('playlists')  # Extract selected playlists
@@ -186,8 +182,7 @@ def store_selected_tracks(request):
 
             all_tracks.extend(formatted_tracks)
 
-        # Store tracks in the session or database as needed
-        print(all_tracks)
+        logger.debug("Fetched %d tracks for user %s", len(all_tracks), request.user.id)
 
         return JsonResponse({'status': 'success', 'message': 'Tracks stored successfully.'})
 
@@ -244,9 +239,11 @@ def transfer_spotify_to_spotify_init(request):
             return render(request, 'error_page.html', {'error_message': 'No playlists selected'})
         
         request.session['s2s_playlists'] = selected_playlist_ids
-        
+        state = "s2s:" + secrets.token_urlsafe(16)
+        request.session['s2s_oauth_state'] = state
+
         from spotify.services import get_authorization_url
-        link = get_authorization_url(state="s2s", show_dialog=True)
+        link = get_authorization_url(state=state, show_dialog=True)
         return redirect(link)
     return render(request, 'error_page.html', {'error_message': 'Invalid request method'})
 

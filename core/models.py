@@ -5,12 +5,17 @@ from django_cryptography.fields import encrypt
 
 # Create your models here.
 
-class Spotify_Token(models.Model):
+class SpotifyToken(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     access_token = encrypt(models.CharField(max_length=500))
     refresh_token = encrypt(models.CharField(max_length=500))
 
+    class Meta:
+        db_table = 'core_spotify_token'
 
+
+# Backward-compat alias — remove once all references are updated to SpotifyToken
+Spotify_Token = SpotifyToken
 
 
 class YouTubeCredentials(models.Model):
@@ -18,8 +23,6 @@ class YouTubeCredentials(models.Model):
     refresh_token = encrypt(models.CharField(max_length=255))
     access_token = encrypt(models.CharField(max_length=255))
     token_uri = models.URLField()
-    client_id = models.CharField(max_length=255)
-    client_secret = models.CharField(max_length=255)
     scopes = models.TextField()
 
     def __str__(self):
