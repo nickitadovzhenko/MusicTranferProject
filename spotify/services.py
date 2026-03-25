@@ -72,7 +72,7 @@ def get_valid_access_token(user):
             spotify_token.access_token = new_access_token
             spotify_token.save()
             return new_access_token
-    except Spotify_Token.DoesNotExist:
+    except SpotifyToken.DoesNotExist:
         raise Exception("You need to connect your Spotify account first.")
 
 def get_spotify_client(user):

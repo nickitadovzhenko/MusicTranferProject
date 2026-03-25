@@ -5,7 +5,7 @@ import spotipy
 from googleapiclient.errors import HttpError
 from youtube.services import get_youtube_service_from_credentials
 from spotify.services import get_valid_access_token
-from core.models import TransferJob
+from core.models import TransferJob, YouTubeCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,8 @@ def transfer_spotify_to_youtube_task(self, user_id, playlist_ids):
 
         access_token = get_valid_access_token(user)
         sp = spotipy.Spotify(auth=access_token)
-        youtube_service = get_youtube_service_from_credentials(user)
+        yt_credentials = YouTubeCredentials.objects.get(user=user)
+        youtube_service = get_youtube_service_from_credentials(yt_credentials)
 
         for spotify_playlist_id in playlist_ids:
             if spotify_playlist_id == 'liked_songs':
@@ -98,7 +99,8 @@ def transfer_youtube_to_spotify_task(self, user_id, playlist_ids):
 
         access_token = get_valid_access_token(user)
         sp = spotipy.Spotify(auth=access_token)
-        youtube_service = get_youtube_service_from_credentials(user)
+        yt_credentials = YouTubeCredentials.objects.get(user=user)
+        youtube_service = get_youtube_service_from_credentials(yt_credentials)
         spotify_user_id = sp.me()['id']
 
         for youtube_playlist_id in playlist_ids:
