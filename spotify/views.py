@@ -1,12 +1,13 @@
+import secrets
+import logging
+
 from django.shortcuts import render
 from django.conf import settings
-from core.models import Spotify_Token, YouTubeCredentials
+from core.models import SpotifyToken, YouTubeCredentials
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 
-from random import randint
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 import requests
 from spotify.services import (
     get_authorization_url,
@@ -14,10 +15,14 @@ from spotify.services import (
     get_valid_access_token
 )
 
+logger = logging.getLogger(__name__)
+
 
 @login_required
 def redirect_to_spotify(request):
-    link = get_authorization_url()
+    state = secrets.token_urlsafe(16)
+    request.session['spotify_oauth_state'] = state
+    link = get_authorization_url(state=state)
     return redirect(link)
 
 
@@ -27,8 +32,19 @@ def handle_authorization_code(request):
     if error:
         return render(request, 'error_page.html', {'error_message': f'Spotify authorization failed: {error}'})
 
+    received_state = request.GET.get("state", "")
+    is_s2s = received_state.startswith("s2s:")
+
+    if is_s2s:
+        expected_state = request.session.pop('s2s_oauth_state', None)
+    else:
+        expected_state = request.session.pop('spotify_oauth_state', None)
+
+    if not expected_state or received_state != expected_state:
+        logger.warning("Spotify OAuth state mismatch for user %s", request.user.id)
+        return render(request, 'error_page.html', {'error_message': 'Invalid OAuth state. Please try connecting again.'})
+
     authorization_code = request.GET.get("code")
-    state = request.GET.get("state")
     token_response = exchange_code_for_tokens(
         authorization_code=authorization_code, 
         redirect_uri=settings.SPOTIFY_REDIRECT_URI,
@@ -39,7 +55,7 @@ def handle_authorization_code(request):
     if not token_response:
         return render(request, 'error_page.html', {'error_message': 'Failed to retrieve access token from Spotify.'})
 
-    if state == "s2s":
+    if is_s2s:
         selected_playlist_ids = request.session.get('s2s_playlists', [])
         if not selected_playlist_ids:
             return render(request, 'error_page.html', {'error_message': 'No playlists found in session for transfer'})
@@ -67,7 +83,7 @@ def handle_authorization_code(request):
         return redirect('transfer_progress', task_id=result.id)
 
     user = request.user
-    Spotify_Token.objects.update_or_create(
+    SpotifyToken.objects.update_or_create(
         user=user,
         defaults={
             'access_token': token_response['access_token'],
@@ -100,7 +116,7 @@ def get_playlists(request):
 
 @login_required
 def disconnect_spotify(request):
-    Spotify_Token.objects.filter(user=request.user).delete()
+    SpotifyToken.objects.filter(user=request.user).delete()
     return redirect('dashboard')
 
 

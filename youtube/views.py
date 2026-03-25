@@ -1,34 +1,19 @@
-from django.shortcuts import render
+import logging
+
+from django.shortcuts import render, redirect
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
 from oauthlib.oauth2 import OAuth2Error
 
 from core.models import YouTubeCredentials
-from django.shortcuts import redirect
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
-from random import randint
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-import requests
-from google_auth_oauthlib.flow import Flow
-from django.http import JsonResponse, HttpResponse
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-import googleapiclient
-
-from googleapiclient.errors import HttpError
-from google.auth.transport.requests import Request
-
-import logging  # For logging errors
-
-
 from youtube.services import (
-    get_flow, 
-    credentials_to_dict, 
-    refresh_access_token, 
-    get_youtube_service_from_credentials
+    get_flow,
+    refresh_access_token,
+    get_youtube_service_from_credentials,
 )
+
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 
@@ -52,7 +37,7 @@ def youtube_callback(request):
     try:
         flow.fetch_token(authorization_response=request.build_absolute_uri())
     except OAuth2Error as e:  # Catch OAuth2 errors
-        logging.error(f"OAuth2 error: {e}")
+        logger.error(f"OAuth2 error: {e}")
         return render(request, 'error_page.html', {'error_message': f"OAuth2 Error: {e}"})
     credentials = flow.credentials
     user = request.user
@@ -64,13 +49,11 @@ def youtube_callback(request):
                 'access_token': credentials.token,
                 'refresh_token': credentials.refresh_token,
                 'token_uri': credentials.token_uri,
-                'client_id': credentials.client_id,
-                'client_secret': credentials.client_secret,
                 'scopes': credentials.scopes
             }
         )
     except Exception as e:
-        logging.error(f"Error saving YouTube credentials: {e}")
+        logger.error(f"Error saving YouTube credentials: {e}")
         return render(request, 'error_page.html', {'error_message': f"Error saving YouTube credentials: {e}"})
     return redirect('home')
 
@@ -99,7 +82,7 @@ def get_youtube_playlists(request):
             total_items = playlist_items_response.get('pageInfo', {}).get('totalResults', 0)
             return total_items
         except Exception as e:
-            logging.error(f"Failed to retrieve number of tracks for playlist {playlist_id}. Error: {str(e)}")
+            logger.error(f"Failed to retrieve number of tracks for playlist {playlist_id}. Error: {str(e)}")
             return 0
 
     try:
@@ -134,7 +117,7 @@ def get_youtube_playlists(request):
 
         return render(request, 'youtube_playlists.html', {'playlists': playlists_data})
     except Exception as e:
-        logging.error(f"An unexpected error occurred: {str(e)}")
+        logger.error(f"An unexpected error occurred: {str(e)}")
         return HttpResponse(f"An unexpected error occurred. Error: {str(e)}", status=500)
 
 

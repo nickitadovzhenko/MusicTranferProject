@@ -1,15 +1,19 @@
+import logging
+
 from django.shortcuts import render, redirect
 from django.conf import settings
-from core.models import Spotify_Token, YouTubeCredentials
 from django.contrib.auth.decorators import login_required
 import spotipy
 
+from core.models import SpotifyToken, YouTubeCredentials
 from spotify.services import (
-    get_authorization_url, 
-    exchange_code_for_tokens, 
-    get_valid_access_token
+    get_authorization_url,
+    exchange_code_for_tokens,
+    get_valid_access_token,
 )
 from youtube.services import get_flow
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def redirect_to_spotify(request):
@@ -19,17 +23,19 @@ def redirect_to_spotify(request):
 def handle_authorization_code(request):
     authorization_code = request.GET.get("code")
     token_response = exchange_code_for_tokens(
-        authorization_code=authorization_code, 
-        redirect_uri=settings.SPOTIFY_REDIRECT_URI, 
-        client_id=settings.SPOTIFY_CLIENT_ID, 
-        client_secret=settings.SPOTIFY_CLIENT_SECRET
+        authorization_code=authorization_code,
+        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+        client_id=settings.SPOTIFY_CLIENT_ID,
+        client_secret=settings.SPOTIFY_CLIENT_SECRET,
     )
-    Spotify_Token.objects.update_or_create(
+    if not token_response:
+        return render(request, 'error_page.html', {'error_message': 'Failed to retrieve access token from Spotify.'})
+    SpotifyToken.objects.update_or_create(
         user=request.user,
         defaults={
             'access_token': token_response['access_token'],
-            'refresh_token': token_response['refresh_token']
-        }
+            'refresh_token': token_response['refresh_token'],
+        },
     )
     return redirect('dashboard')
 
@@ -38,7 +44,7 @@ def get_playlists(request):
     access_token = get_valid_access_token(request.user)
     sp = spotipy.Spotify(auth=access_token)
     playlists = sp.current_user_playlists()
-    return render(request, "C:/Users/nick/Documents/GitHub/MusicTranferProject/core/templates/playlists.html", {"playlists": playlists['items']})
+    return render(request, "playlists.html", {"playlists": playlists['items']})
 
 def authorize_youtube(request):
     flow = get_flow()
@@ -59,10 +65,9 @@ def youtube_callback(request):
         user=request.user,
         defaults={
             'access_token': credentials.token,
+            'refresh_token': credentials.refresh_token,
             'token_uri': credentials.token_uri,
-            'client_id': credentials.client_id,
-            'client_secret': credentials.client_secret,
-            'scopes': credentials.scopes
-        }
+            'scopes': credentials.scopes,
+        },
     )
     return redirect('home')

@@ -1,8 +1,11 @@
 import requests
+import logging
 from django.conf import settings
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+
+logger = logging.getLogger(__name__)
 
 def get_flow():
     return Flow.from_client_config(
@@ -22,15 +25,6 @@ def get_flow():
         ]
     )
 
-def credentials_to_dict(credentials):
-    return {
-        'token': credentials.token,
-        'refresh_token': credentials.refresh_token,
-        'token_uri': credentials.token_uri,
-        'client_id': credentials.client_id,
-        'client_secret': credentials.client_secret,
-        'scopes': credentials.scopes
-    }
 
 def refresh_access_token(refresh_token, client_id, client_secret, youtube_credentials):
     url = 'https://oauth2.googleapis.com/token'
@@ -50,14 +44,12 @@ def refresh_access_token(refresh_token, client_id, client_secret, youtube_creden
         raise Exception(f"Error refreshing YouTube token: {response.status_code}, {response.text}")
 
 def get_youtube_service_from_credentials(youtube_credentials):
-    # Depending on how outdated the token is, we might want to refresh it proactively,
-    # but googleapiclient usually handles it if token_uri and client_secrets are present. 
     creds = Credentials(
         token=youtube_credentials.access_token,
         refresh_token=youtube_credentials.refresh_token,
         token_uri=youtube_credentials.token_uri,
-        client_id=youtube_credentials.client_id,
-        client_secret=youtube_credentials.client_secret,
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
         scopes=youtube_credentials.scopes
     )
     return build('youtube', 'v3', credentials=creds)

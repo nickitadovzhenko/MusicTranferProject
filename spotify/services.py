@@ -1,16 +1,16 @@
+import secrets
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import requests
 from django.conf import settings
-from core.models import Spotify_Token, YouTubeCredentials
-from random import randint
+from core.models import SpotifyToken, YouTubeCredentials
 
 def get_authorization_url(state=None, show_dialog=False):
     client_id = settings.SPOTIFY_CLIENT_ID
     redirect_uri = settings.SPOTIFY_REDIRECT_URI
     scope = "playlist-read-private playlist-modify-public playlist-modify-private user-library-read user-library-modify"
     if state is None:
-        state = str(randint(1, 100))
+        state = secrets.token_urlsafe(16)
     url = f"https://accounts.spotify.com/authorize?" \
           f"client_id={client_id}" \
           f"&response_type=code" \
@@ -43,6 +43,8 @@ def exchange_refresh_token_for_tokens(refresh_token, client_id, client_secret):
         "client_id": client_id,
     }
     response = requests.post(url, data=data, auth=(client_id, client_secret))
+    if response.status_code != 200:
+        raise Exception(f"Failed to refresh Spotify token: {response.status_code}")
     return response.json()
 
 def is_token_valid(access_token):
@@ -57,7 +59,7 @@ def is_token_valid(access_token):
 
 def get_valid_access_token(user):
     try:
-        spotify_token = Spotify_Token.objects.get(user=user)
+        spotify_token = SpotifyToken.objects.get(user=user)
         access_token = spotify_token.access_token
         if is_token_valid(access_token):
             return access_token
@@ -70,7 +72,7 @@ def get_valid_access_token(user):
             spotify_token.access_token = new_access_token
             spotify_token.save()
             return new_access_token
-    except Spotify_Token.DoesNotExist:
+    except SpotifyToken.DoesNotExist:
         raise Exception("You need to connect your Spotify account first.")
 
 def get_spotify_client(user):
