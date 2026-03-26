@@ -1,5 +1,5 @@
 from unittest.mock import patch, MagicMock, call
-
+from django.db import connection
 from django.contrib.auth.models import User
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -456,3 +456,34 @@ class TransferToSpotifyViewTest(TestCase):
         self.assertEqual(response.status_code, 302)
         mock_delay.assert_called_once_with(self.user.id, ['ytpl1'])
         self.assertTrue(TransferJob.objects.filter(task_id='yt-task-id-456').exists())
+
+
+class EncryptedCharFieldTest(TestCase):
+    def setUp(self):
+        self.user = make_user('enc_user')
+    
+    def test_token_is_decrypted_correctly_on_read(self):
+        SpotifyToken.objects.create(
+            user = self.user,
+            access_token = 'my_plain_token',
+            refresh_token = 'my_plain_refresh',
+        )
+        token = SpotifyToken.objects.get(user=self.user)
+        self.assertEqual(token.access_token, 'my_plain_token')
+        self.assertEqual(token.refresh_token, 'my_plain_refresh')
+    
+    def test_token_is_encrypted_in_database(self):
+        SpotifyToken.objects.create(
+            user=self.user,
+            access_token='my_plain_token',
+            refresh_token='my_plain_refresh',
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT access_token FROM core_spotify_token WHERE user_id = %s',
+                [self.user.id]
+            )
+            raw_value = cursor.fetchone()[0]
+
+        self.assertNotEqual(raw_value, 'my_plain_token')
+        self.assertTrue(raw_value.startswith('gAAAA'))
