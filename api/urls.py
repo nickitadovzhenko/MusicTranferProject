@@ -3,9 +3,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # path('login', views.login),
-    # path('signup', views.signup),
-    # path('test_token', views.test_token),
     path('redirect', views.redirect_to_spotify, name='spotify_redirect'),
 
     path('spotify_callback', views.handle_authorization_code, name='spotify_callback'),
